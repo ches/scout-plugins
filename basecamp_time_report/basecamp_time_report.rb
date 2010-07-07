@@ -25,13 +25,19 @@ class BasecampTimeReport < Scout::Plugin
     people = {}
     total_hours = 0
     report.each do |time_entry|
-      unless people[time_entry.person_id]
-        people[time_entry.person_id] = {}
-        person =  Basecamp::Person.find(time_entry.person_id)
-        people[time_entry.person_id][:name] = "#{person.first_name} #{person.last_name}"
-        people[time_entry.person_id][:hours] = 0
+      person = people[time_entry.person_id] ||= {}
+
+      if person.empty?
+        person[:hours] = 0
+        begin
+          person_bc_res = Basecamp::Person.find(time_entry.person_id)
+          person[:name] = "#{person_bc_res.first_name} #{person_bc_res.last_name}"
+        rescue ActiveResource::ResourceNotFound
+          person[:name] = "Deleted User #{time_entry.person_id}"
+        end
       end
-      people[time_entry.person_id][:hours] += time_entry.hours
+
+      person[:hours] += time_entry.hours
       total_hours += time_entry.hours
     end
     people.each do |id, details|
